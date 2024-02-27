@@ -8,32 +8,47 @@
 #define PORT 8000
 #define MAX 128
 
+int client_send(int sockfd) {
+    char msg[MAX];
+    memset(msg, 0, MAX);
+
+    printf(">>> ");
+    
+    // write message into buffer
+    int n = 0;
+    while ((msg[n++] = getchar()) != '\n');
+
+    // copy msg from buffer and send to server
+    send(sockfd, msg, sizeof(msg), 0);
+
+    return 0;
+}
+
+int client_receive(int sockfd) {
+    char buff[MAX];
+    memset(buff, 0, sizeof(buff));
+
+    // read message from server into buff
+    recv(sockfd, buff, sizeof(buff), 0);
+    printf("server: %s", buff);
+
+    // if msg contains "exit" then client exit
+    if ((strncmp(buff, "/exit", 4)) == 0 || (strncmp(buff, "/quit", 4)) == 0) {
+        printf("Bye!\n");
+        return 1;
+    }
+
+    return 0;
+
+}
+
 int clientIdle(int sockfd) {
     char buff[MAX];
     
     while(1) {
-        memset(buff, 0, sizeof(buff));
-
-        // write message into buffer
-        printf("Message: ");
-        int n = 0;
-        while ((buff[n++] = getchar()) != '\n');
-        
-        // copy message from buffer and send to server
-        send(sockfd, buff, sizeof(buff), 0);
-
-        // clear buffer to receive message from server
-        memset(buff, 0, sizeof(buff));
-
-        // read message from server into buff
-        recv(sockfd, buff, sizeof(buff), 0);
-        printf("Server: %s", buff);
-
-        // if msg contains "exit" then client exit
-        if ((strncmp(buff, "exit", 4)) == 0) {
-            printf("Bye!\n");
-            break;
-        }
+        client_send(sockfd);
+        int clientRet = client_receive(sockfd);
+        if (clientRet) break;
     }
 
     return 0;

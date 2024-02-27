@@ -10,33 +10,46 @@
 #define MAX_PENDING 5
 #define MAX 128
 
-int idle(int connfd) {
+int server_send(int connfd) {
+    char msg[MAX];
+    memset(msg, 0, MAX);
+
+    printf(">>> ");
+
+    // copy server message in the buffer
+    int n = 0;
+    while((msg[n++] = getchar()) != '\n');
+
+    // and set the buffer to the client
+    send(connfd, msg, sizeof(msg), 0);
+
+    // if msg contails "exit" then server exit
+    if (strncmp("/exit", msg, 4) == 0 || strncmp("/quit", msg, 4) == 0) {
+        printf("Bye!\n");
+        return 1;
+    }
+
+    return 0;
+}
+
+int server_receive(int connfd) {
     char buff[MAX];
+    memset(buff, 0, MAX);
 
+    // read the message from the client and copy it into buff
+    recv(connfd, buff, sizeof(buff), 0);
+
+    // print buffer which contains the clients contents
+    printf("Client: %s", buff);
+
+    return 0;
+}
+
+int server_idle(int connfd) {
     while(1) {
-        memset(buff, 0, MAX);
-
-        // read the message from the client and copy it into buff
-        recv(connfd, buff, sizeof(buff), 0);
-
-        // print buffer which contains the clients contents
-        printf("Client: %s", buff);
-        printf("Message: ");
-
-        memset(buff, 0, MAX);
-        int n = 0;
-
-        // copy server message in the buffer
-        while((buff[n++] = getchar()) != '\n');
-
-        // and set the buffer to the client
-        send(connfd, buff, sizeof(buff), 0);
-
-        // if msg contails "exit" then server exit
-        if (strncmp("exit", buff, 4) == 0) {
-            printf("Bye!\n");
-            break;
-        }
+        server_receive(connfd);
+        int serverRet = server_send(connfd);
+        if (serverRet) break;
     }
 
     return 0;
@@ -79,11 +92,12 @@ int main() {
         printf("Server [%d] accepted the client [%d]\n", sockfd, connfd);
     }
 
-    if(idle(connfd) != 0) {
+    if(server_idle(connfd) != 0) {
         perror("An Error occured!\n");
     }
 
     close(sockfd);
+    close(connfd);
     
     return 0;
 }
