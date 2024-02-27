@@ -5,54 +5,46 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/ip.h>
+#include <pthread.h>
 
 #define PORT 8000
 #define MAX_PENDING 5
 #define MAX 128
 
-int server_send(int connfd) {
+int server_send(long connfd) {
     char msg[MAX];
     memset(msg, 0, MAX);
 
-    printf(">>> ");
+    while(fgets(msg, MAX, stdin) != NULL) {
+        // if msg contails "exit" then server exit
+        if (strncmp("/exit", msg, 5) == 0 || strncmp("/quit", msg, 5) == 0) {
+            printf("Bye!\n");
+            return 1;
+        }
 
-    // copy server message in the buffer
-    int n = 0;
-    while((msg[n++] = getchar()) != '\n');
-
-    // and set the buffer to the client
-    send(connfd, msg, sizeof(msg), 0);
-
-    // if msg contails "exit" then server exit
-    if (strncmp("/exit", msg, 4) == 0 || strncmp("/quit", msg, 4) == 0) {
-        printf("Bye!\n");
-        return 1;
+        // and set the buffer to the client
+        send(connfd, msg, sizeof(msg), 0);
     }
 
     return 0;
 }
 
-int server_receive(int connfd) {
+void * server_receive(void * connfd) {
     char buff[MAX];
-    memset(buff, 0, MAX);
-
-    // read the message from the client and copy it into buff
-    recv(connfd, buff, sizeof(buff), 0);
-
-    // print buffer which contains the clients contents
-    printf("Client: %s", buff);
-
-    return 0;
-}
-
-int server_idle(int connfd) {
+    long socketfd = (long) connfd;
+   
     while(1) {
-        server_receive(connfd);
-        int serverRet = server_send(connfd);
-        if (serverRet) break;
+        memset(buff, 0, MAX);
+
+        // read the message from the client and copy it into buff
+        int response = recv(socketfd, buff, sizeof(buff), 0);
+        if (response) {
+            // print buffer which contains the clients contents
+            printf("client: %s", buff);
+            fflush(stdout);
+        }
     }
 
-    return 0;
 }
 
 int main() {
@@ -84,18 +76,20 @@ int main() {
 
     struct sockaddr_in clientAddr;
     int clientLen = sizeof(clientAddr);
-    int connfd;
+    long connfd;
     connfd = accept(sockfd, (struct sockaddr*)&clientAddr, &clientLen);
     if (connfd == -1) {
         perror("Server accept FAILED!");
     } else {
-        printf("Server [%d] accepted the client [%d]\n", sockfd, connfd);
+        printf("Server [%d] accepted the client [%ld]\n", sockfd, connfd);
     }
 
-    if(server_idle(connfd) != 0) {
-        perror("An Error occured!\n");
-    }
+    pthread_t thread;
+    pthread_create(&thread, NULL, server_receive, (void *)connfd);
 
+    server_send(connfd);
+
+    pthread_cancel(thread);
     close(sockfd);
     close(connfd);
     
