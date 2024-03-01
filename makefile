@@ -1,8 +1,8 @@
 server: server.c
-	gcc -lpthread server.c -o server
+	gcc-13 -lpthread server.c -o server
 
 client: client.c
-	gcc -lpthread client.c -o client
+	gcc-13 -lpthread client.c -o client
 
 all: server client
 
